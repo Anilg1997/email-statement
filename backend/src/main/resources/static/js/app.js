@@ -13,18 +13,27 @@ const SAMPLE_TXNS = [
   {date:'2026-01-30',description:'Interest Credited',debit:'',credit:'187.50'}
 ];
 
+function switchTab(tabName){
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.sidebar-item[data-tab="'+tabName+'"]').classList.add('active');
+  document.getElementById('tab-'+tabName).classList.add('active');
+  if(tabName==='upload') refreshList();
+}
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('.sidebar-item').forEach(item=>{
     item.addEventListener('click',function(){
-      document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-      this.classList.add('active');
-      document.getElementById('tab-'+this.dataset.tab).classList.add('active');
-      if(this.dataset.tab==='upload') refreshList();
+      switchTab(this.dataset.tab);
     });
   });
   loadSampleData();
   setupUpload();
+  var hash=window.location.hash.replace('#','');
+  if(hash) setTimeout(function(){switchTab(hash);},100);
+  window.addEventListener('hashchange',function(){
+    var h=window.location.hash.replace('#','');
+    if(h) switchTab(h);
+  });
 });
 
 function loadSampleData(){
