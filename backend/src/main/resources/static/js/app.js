@@ -472,5 +472,149 @@ document.addEventListener('DOMContentLoaded',function(){
     if(tabName==='bgv'){
       refreshBGVList();
     }
+    if(tabName==='email-send'){
+      loadEmailConfig();
+      refreshAccessLog();
+    }
   };
 });
+
+// ========== EMAIL & TRACKING ==========
+
+function saveEmailConfig(){
+  var data={
+    host:document.getElementById('smtpHost').value.trim(),
+    port:parseInt(document.getElementById('smtpPort').value)||587,
+    username:document.getElementById('smtpUsername').value.trim(),
+    password:document.getElementById('smtpPassword').value.trim(),
+    useSsl:document.getElementById('smtpUseSsl').checked,
+    fromName:document.getElementById('smtpFromName').value.trim()
+  };
+  if(!data.host||!data.username||!data.password){
+    toast('Fill in SMTP host, username, and password','error');return;
+  }
+  toast('Saving email configuration...','info');
+  fetch(API+'/email/config',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var status=document.getElementById('emailConfigStatus');
+    if(d.status==='ok'){
+      status.textContent='\u2705 '+d.message;
+      status.className='upload-status success';status.style.display='block';
+      toast('Email configured successfully!','success');
+    } else {
+      status.textContent='\u274C '+d.message;
+      status.className='upload-status error';status.style.display='block';
+      toast('Failed to configure email','error');
+    }
+  })
+  .catch(function(e){
+    var status=document.getElementById('emailConfigStatus');
+    status.textContent='\u274C Error: '+e.message;
+    status.className='upload-status error';status.style.display='block';
+    toast('Error saving config','error');
+  });
+}
+
+function loadEmailConfig(){
+  fetch(API+'/email/config')
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.configured){
+      var status=document.getElementById('emailConfigStatus');
+      status.textContent='\u2705 Email configured: '+d.username+' via '+d.host+':'+d.port;
+      status.className='upload-status success';status.style.display='block';
+      if(d.host) document.getElementById('smtpHost').value=d.host;
+      if(d.port) document.getElementById('smtpPort').value=d.port;
+      if(d.username) document.getElementById('smtpUsername').value=d.username;
+      if(d.fromName) document.getElementById('smtpFromName').value=d.fromName;
+    }
+  }).catch(function(){});
+}
+
+function sendStatementEmail(){
+  var toEmail=document.getElementById('sendToEmail').value.trim();
+  var accountId=document.getElementById('sendAccountId').value.trim();
+  var bankName=document.getElementById('sendBankName').value.trim();
+  var holderName=document.getElementById('sendHolderName').value.trim();
+
+  if(!toEmail){toast('Enter recipient email address','error');return;}
+  if(!accountId){toast('Enter Account ID','error');return;}
+  if(!bankName){toast('Enter Bank Name','error');return;}
+
+  var result=document.getElementById('sendEmailResult');
+  result.textContent='Sending email with PDF attachment...';
+  result.className='upload-status';result.style.display='block';
+  toast('Sending email...','info');
+
+  fetch(API+'/email/send',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      toEmail:toEmail,accountId:accountId,
+      bankName:bankName,accountHolder:holderName
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.status==='ok'){
+      result.textContent='\u2705 '+d.message+' (Subject: '+d.subject+', Attachment: '+d.attachment+')';
+      result.className='upload-status success';
+      toast('Email sent successfully to '+toEmail+'!','success');
+    } else {
+      result.textContent='\u274C '+d.message;
+      result.className='upload-status error';
+      toast('Failed to send email','error');
+    }
+  })
+  .catch(function(e){
+    result.textContent='\u274C Error: '+e.message;
+    result.className='upload-status error';
+    toast('Error sending email','error');
+  });
+}
+
+function refreshAccessLog(){
+  var filter=document.getElementById('accessLogFilter');
+  var accountId=filter?filter.value.trim():'';
+  var url=API+'/access-log';
+  if(accountId) url+='?accountId='+encodeURIComponent(accountId);
+
+  var tbody=document.getElementById('accessLogBody');
+  tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>';
+
+  fetch(url)
+  .then(function(r){return r.json();})
+  .then(function(d){
+    // Show stats
+    if(d.stats){
+      var statsDiv=document.getElementById('accessLogStats');
+      statsDiv.innerHTML='<div style="display:flex;gap:16px;flex-wrap:wrap;">'+
+        '<div style="background:#f0f7ff;padding:12px 20px;border-radius:8px;"><strong>'+d.stats.totalAccesses+'</strong><br><span style="font-size:12px;color:#666;">Total Accesses</span></div>'+
+        '<div style="background:#f0fdf4;padding:12px 20px;border-radius:8px;"><strong>'+d.stats.uniqueAccounts+'</strong><br><span style="font-size:12px;color:#666;">Unique Accounts</span></div>'+
+        '</div>';
+      statsDiv.style.display='block';
+    }
+
+    var logs=d.logs||[];
+    if(logs.length===0){
+      tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:#999">No access logs yet. PDFs will be tracked when accessed via the Chrome Extension.</td></tr>';
+    } else {
+      tbody.innerHTML='';
+      logs.forEach(function(log){
+        var tr=document.createElement('tr');
+        var srcColor=log.source==='direct'?'#f59e0b':'#16a34a';
+        tr.innerHTML='<td style="font-size:12px;white-space:nowrap;">'+log.timestamp+'</td>'+
+          '<td><strong>'+log.accountId+'</strong></td>'+
+          '<td style="font-size:12px;">'+log.ipAddress+'</td>'+
+          '<td><span style="background:'+srcColor+'20;color:'+srcColor+';padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">'+log.source+'</span></td>'+
+          '<td style="font-size:11px;color:#999;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+escapeHtmlAttr(log.userAgent)+'">'+log.userAgent+'</td>';
+        tbody.appendChild(tr);
+      });
+    }
+  })
+  .catch(function(e){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:#dc2626">Error: '+e.message+'</td></tr>';
+  });
+}

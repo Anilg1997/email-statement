@@ -2,6 +2,8 @@ package com.bankeditor.controller;
 
 import com.bankeditor.service.PdfEncryptionService;
 import com.bankeditor.service.PdfGenerationService;
+import com.bankeditor.service.PdfAccessTracker;
+import com.bankeditor.service.EmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,14 +23,20 @@ public class StatementController {
 
     private final PdfGenerationService pdfGenerationService;
     private final PdfEncryptionService pdfEncryptionService;
+    private final PdfAccessTracker pdfAccessTracker;
+    private final EmailService emailService;
     private final Map<String, Map<String, Object>> savedStatements = new ConcurrentHashMap<>();
     private final Map<String, byte[]> uploadedPdfs = new ConcurrentHashMap<>();
     private final Map<String, String> uploadedMeta = new ConcurrentHashMap<>();
 
     public StatementController(PdfGenerationService pdfGenerationService,
-                               PdfEncryptionService pdfEncryptionService) {
+                               PdfEncryptionService pdfEncryptionService,
+                               PdfAccessTracker pdfAccessTracker,
+                               EmailService emailService) {
         this.pdfGenerationService = pdfGenerationService;
         this.pdfEncryptionService = pdfEncryptionService;
+        this.pdfAccessTracker = pdfAccessTracker;
+        this.emailService = emailService;
     }
 
     @PostMapping("/generate")
@@ -103,6 +111,13 @@ public class StatementController {
         if (accountId == null || accountId.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
+        // Track access
+        String ip = request.getRemoteAddr();
+        String ua = request.getHeader("User-Agent");
+        String referer = request.getHeader("Referer");
+        String source = referer != null && !referer.isEmpty() ? referer : "direct";
+        pdfAccessTracker.logAccess(accountId, ip, ua, source);
+
         try {
             byte[] pdfBytes;
             if (uploadedPdfs.containsKey(accountId)) {
@@ -121,6 +136,78 @@ public class StatementController {
             return ResponseEntity.ok().headers(h).body(encryptedPdf);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    // ========== Access Tracking ==========
+
+    @GetMapping("/access-log")
+    public ResponseEntity<Map<String, Object>> getAccessLog(
+            @RequestParam(required = false) String accountId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("logs", pdfAccessTracker.getAccessLogs(accountId));
+        result.put("stats", pdfAccessTracker.getStats());
+        return ResponseEntity.ok(result);
+    }
+
+    // ========== Email Send ==========
+
+    @PostMapping("/email/config")
+    public ResponseEntity<Map<String, Object>> configureEmail(
+            @RequestBody Map<String, Object> config) {
+        try {
+            EmailService.EmailConfig ec = new EmailService.EmailConfig();
+            ec.host = (String) config.getOrDefault("host", "smtp.gmail.com");
+            ec.port = config.containsKey("port") ? ((Number) config.get("port")).intValue() : 587;
+            ec.username = (String) config.getOrDefault("username", "");
+            ec.password = (String) config.getOrDefault("password", "");
+            ec.useSsl = (boolean) config.getOrDefault("useSsl", true);
+            ec.fromName = (String) config.getOrDefault("fromName", "Bank Statement Service");
+
+            emailService.configure(ec);
+            return ResponseEntity.ok(Map.of("status", "ok", "message", "Email configured successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/email/config")
+    public ResponseEntity<Map<String, Object>> getEmailConfig() {
+        return ResponseEntity.ok(emailService.getConfigStatus());
+    }
+
+    @PostMapping("/email/send")
+    public ResponseEntity<Map<String, Object>> sendEmail(@RequestBody Map<String, Object> request) {
+        try {
+            String toEmail = (String) request.get("toEmail");
+            String accountId = (String) request.get("accountId");
+            String bankName = (String) request.getOrDefault("bankName", "Your Bank");
+            String accountHolder = (String) request.getOrDefault("accountHolder", "Account Holder");
+
+            if (toEmail == null || toEmail.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "toEmail is required"));
+            }
+            if (accountId == null || accountId.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "accountId is required"));
+            }
+
+            // Get or generate PDF
+            byte[] pdfBytes;
+            if (uploadedPdfs.containsKey(accountId)) {
+                pdfBytes = uploadedPdfs.get(accountId);
+            } else {
+                Map<String, Object> data = savedStatements.get(accountId);
+                if (data == null) data = createDefaultData(accountId);
+                pdfBytes = pdfGenerationService.generateStatement(data);
+            }
+            String password = accountId.substring(Math.max(0, accountId.length() - 4));
+            byte[] encryptedPdf = pdfEncryptionService.encryptPdf(pdfBytes, password);
+
+            // Send email
+            Map<String, Object> emailResult = emailService.sendStatementEmail(toEmail, bankName, accountHolder, accountId, encryptedPdf, password);
+            return ResponseEntity.ok(emailResult);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
         }
     }
 

