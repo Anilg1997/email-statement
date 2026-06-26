@@ -8,8 +8,9 @@ Replace real bank statement PDFs from your bank's website/email with custom edit
 1. Bank sends statement PDF → you click it in Gmail/bank website
 2. Chrome Extension intercepts the PDF URL request
 3. Request is redirected to localhost:8080/api/replace?accountId=XXXXX
-4. Spring Boot serves your pre-uploaded or editor-generated PDF instead
-5. PDF opens instantly — no password, no difference visible to the user
+4. Spring Boot encrypts your pre-uploaded/edited PDF with AES-256
+5. PDF opens with password prompt — just like a real bank statement
+   Password = last 4 digits of account number
 ```
 
 ## Features
@@ -17,9 +18,8 @@ Replace real bank statement PDFs from your bank's website/email with custom edit
 - **Statement Editor** — Fill bank name, account holder, transactions, balances, and generate a professional PDF
 - **Upload PDF** — Upload any pre-edited PDF (your real statement edited in any PDF tool) for automatic replacement
 - **Chrome Extension** (MV3) — Intercepts bank PDF downloads via `declarativeNetRequest`, redirects to your local server
+- **AES-256 encryption** — Every PDF served via replace is encrypted with a password (last 4 digits of account), just like real bank statements
 - **No database** — Everything runs in-memory. One JAR, zero setup.
-- **No password prompt** — Replaced PDFs open instantly (no encryption on replace flow)
-- **AES-256 available** — Editor also supports encrypted PDF download for other use cases
 
 ## Prerequisites
 
@@ -73,14 +73,15 @@ Two ways:
 ```
 http://localhost:8080/api/replace?accountId=1234567890
 ```
+It will prompt for a password. Enter **7890** (last 4 digits of account).
 
-**With extension** — navigate to any PDF URL on your configured bank domain. The extension will automatically redirect to your local server and serve your custom PDF.
+**With extension** — navigate to any PDF URL on your configured bank domain. The extension will automatically redirect to your local server and serve your encrypted custom PDF. Enter the last 4 digits of your account number as the password.
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/replace?accountId=XXX` | Serve your custom PDF (no encryption) |
+| GET | `/api/replace?accountId=XXX` | Serve your custom PDF encrypted (password = last 4 digits of accountId) |
 | POST | `/api/generate` | Generate + encrypt a PDF from JSON form data |
 | POST | `/api/generate-plain` | Generate a plain PDF from JSON form data |
 | POST | `/api/upload` | Upload a PDF for a specific account |
@@ -155,11 +156,13 @@ curl -X POST http://localhost:8080/api/upload \
 # 4. Verify list
 curl http://localhost:8080/api/list
 
-# 5. Test replace endpoint (opens in browser / returns PDF)
+# 5. Test replace endpoint (returns encrypted PDF)
 curl http://localhost:8080/api/replace?accountId=9876543210 -o replaced.pdf
+# Opens with password: 3210 (last 4 digits of account)
 
 # 6. Test replace for generated account
 curl http://localhost:8080/api/replace?accountId=1234567890 -o generated-replaced.pdf
+# Opens with password: 7890
 ```
 
 ## Troubleshooting
@@ -168,5 +171,5 @@ curl http://localhost:8080/api/replace?accountId=1234567890 -o generated-replace
 |---------|----------|
 | Extension not intercepting | Check `chrome://extensions/` → Service Worker console for logs. Verify bank domain matches exactly. |
 | Backend won't start | Ensure port 8080 is free: `netstat -ano \| findstr :8080`, then `taskkill /F /PID <PID>` |
-| PDF doesn't open | The replace endpoint serves PDFs without encryption. Ensure your browser supports inline PDF viewing. |
+| PDF doesn't open | Ensure your browser supports AES-256 encrypted PDFs (Chrome, Adobe Reader). Password = last 4 digits of account number. |
 | "Port already in use" | Kill zombie Java: `Get-Process java \| Stop-Process -Force` (PowerShell) |
