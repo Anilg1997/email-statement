@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded',function(){
   });
   loadSampleData();
   setupUpload();
+  setupPdfImport();
   var hash=window.location.hash.replace('#','');
   if(hash) setTimeout(function(){switchTab(hash);},100);
   window.addEventListener('hashchange',function(){
@@ -116,7 +117,92 @@ function downloadPdf(endpoint,filename){
 function resetForm(){
   if(!confirm('Reset all data?'))return;
   document.getElementById('txnBody').innerHTML='';txnCount=0;
+  clearImportFile();
   loadSampleData();toast('Reset to sample data','info');
+}
+
+// ========== PDF IMPORT ==========
+function setupPdfImport(){
+  var zone=document.getElementById('importZone');
+  var input=document.getElementById('importFileInput');
+  if(!zone) return;
+  zone.addEventListener('click',function(){input.click();});
+  zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('dragover');});
+  zone.addEventListener('dragleave',function(){zone.classList.remove('dragover');});
+  zone.addEventListener('drop',function(e){e.preventDefault();zone.classList.remove('dragover');
+    if(e.dataTransfer.files.length) handleImportFile(e.dataTransfer.files[0]);});
+  input.addEventListener('change',function(){if(input.files.length) handleImportFile(input.files[0]);});
+}
+
+function handleImportFile(file){
+  if(!file.name.toLowerCase().endsWith('.pdf')){
+    toast('Please select a PDF file','error');return;
+  }
+  document.getElementById('importFileName').textContent=file.name+' ('+Math.round(file.size/1024)+' KB)';
+  document.getElementById('importFileInfo').style.display='flex';
+  window._importFile=file;
+}
+
+function clearImportFile(){
+  var info=document.getElementById('importFileInfo');
+  if(info) info.style.display='none';
+  var fi=document.getElementById('importFileInput');
+  if(fi) fi.value='';
+  window._importFile=null;
+  var st=document.getElementById('importStatus');
+  if(st){st.style.display='none';}
+}
+
+function importPdfToEditor(){
+  var file=window._importFile;
+  if(!file){toast('Select a PDF file to import','error');return;}
+  var status=document.getElementById('importStatus');
+  status.textContent='Extracting data from PDF...';status.className='upload-status';status.style.display='block';
+  toast('Reading PDF data...','info');
+
+  var fd=new FormData();fd.append('file',file);
+  fetch(API+'/import-pdf',{method:'POST',body:fd})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.status==='ok'){
+      // Pre-fill the editor form with extracted data
+      if(d.bankName) document.getElementById('bankName').value=d.bankName;
+      if(d.accountNumber) document.getElementById('accountNumber').value=d.accountNumber;
+      if(d.accountHolder) document.getElementById('accountHolder').value=d.accountHolder;
+      if(d.period) document.getElementById('period').value=d.period;
+      if(d.branch) document.getElementById('branch').value=d.branch;
+      if(d.ifsc) document.getElementById('ifsc').value=d.ifsc;
+      if(d.address) document.getElementById('address').value=d.address;
+      if(d.openingBalance) document.getElementById('openingBalance').value=d.openingBalance;
+
+      // Clear existing transactions and add imported ones
+      document.getElementById('txnBody').innerHTML='';txnCount=0;
+      if(d.transactions && d.transactions.length>0){
+        d.transactions.forEach(function(t){
+          addTransaction(t.date||'',t.description||'',t.debit||'',t.credit||'');
+        });
+      } else {
+        // Add some empty rows
+        addTransaction('','','','');
+        addTransaction('','','','');
+      }
+      updateSummary();
+      clearImportFile();
+      toast('Data imported from PDF successfully! Edit as needed.','success');
+      status.textContent='\u2705 Imported! Data pre-filled. Edit the values above and generate your PDF.';
+      status.className='upload-status success';
+    } else {
+      status.textContent='Could not auto-extract. Form pre-filled with sample data - edit manually.';
+      status.className='upload-status';
+      status.style.display='block';
+      toast('PDF preview not extractable. Please enter data manually.','info');
+    }
+  })
+  .catch(function(e){
+    status.textContent='Could not read PDF. Please enter data manually.';
+    status.className='upload-status error';
+    toast('Error reading PDF: '+e.message,'error');
+  });
 }
 
 // ========== UPLOAD ==========
@@ -194,3 +280,197 @@ function toast(msg,type){
   t.className='toast '+type+' show';
   clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},4000);
 }
+
+// ========== BGV VERIFICATION ==========
+
+function switchBGVTab(tabName){
+  document.querySelectorAll('.bgv-subtab').forEach(function(t){t.style.display='none';});
+  document.getElementById('bgv-'+tabName).style.display='block';
+}
+
+function generateBGVLink(){
+  var accountId=document.getElementById('bgvAccountId').value.trim();
+  var bankName=document.getElementById('bgvBankName').value.trim();
+  var holderName=document.getElementById('bgvHolderName').value.trim();
+  var mode=document.getElementById('bgvMode').value;
+
+  if(!accountId){toast('Enter Account ID','error');return;}
+  if(!bankName){toast('Enter Bank Name','error');return;}
+
+  // First store the current statement data
+  var statementData=collectFormData();
+  statementData.bankName=bankName;
+  statementData.accountHolder=holderName;
+  statementData.accountNumber=accountId;
+
+  toast('Generating verification link...','info');
+
+  fetch(API+'/bgv/store-statement',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(statementData)
+  })
+  .then(function(r){return r.json();})
+  .then(function(storeRes){
+    if(storeRes.status!=='ok') throw new Error(storeRes.message);
+
+    return fetch(API+'/bgv/generate-link',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        accountId:accountId,
+        bankName:bankName,
+        accountHolder:holderName,
+        mode:mode
+      })
+    });
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.status!=='ok') throw new Error(data.message);
+
+    document.getElementById('bgvViewUrl').textContent=data.viewUrl;
+    document.getElementById('bgvPassword').textContent=data.password;
+    document.getElementById('bgvVerificationId').textContent=data.verificationId;
+    document.getElementById('bgvOpenLink').href=data.viewUrl;
+    document.getElementById('bgvOpenPdf').href=API+'/replace?accountId='+accountId;
+    document.getElementById('bgvLinkResult').style.display='block';
+
+    // Auto-fill email tab
+    document.getElementById('emailVerificationId').value=data.verificationId;
+
+    toast('Verification link generated! Open it to see the portal view.','success');
+  })
+  .catch(function(e){
+    toast('Failed: '+e.message,'error');
+  });
+}
+
+function copyBGVUrl(){
+  var url=document.getElementById('bgvViewUrl').textContent;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(function(){
+      toast('URL copied to clipboard!','success');
+    }).catch(function(){
+      fallbackCopy(url);
+    });
+  } else {
+    fallbackCopy(url);
+  }
+}
+
+function fallbackCopy(text){
+  var ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  toast('URL copied!','success');
+}
+
+function generateEmailTemplate(){
+  var accountId=document.getElementById('emailAccountId').value.trim();
+  var bankName=document.getElementById('emailBankName').value.trim();
+  var holderName=document.getElementById('emailHolderName').value.trim();
+  var toEmail=document.getElementById('emailTo').value.trim();
+  var verificationId=document.getElementById('emailVerificationId').value.trim();
+
+  if(!accountId){toast('Enter Account ID','error');return;}
+  if(!bankName){toast('Enter Bank Name','error');return;}
+  if(!holderName){toast('Enter Account Holder name','error');return;}
+  if(!toEmail){toast('Enter BGV email address','error');return;}
+
+  toast('Generating email template...','info');
+
+  fetch(API+'/bgv/email-template',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      accountId:accountId,
+      bankName:bankName,
+      accountHolder:holderName,
+      toEmail:toEmail,
+      verificationId:verificationId
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.status!=='ok') throw new Error(data.message);
+
+    document.getElementById('emailFrom').textContent=data.fromEmail;
+    document.getElementById('emailSubject').textContent=data.subject;
+    var preview=document.getElementById('emailPreview');
+    preview.innerHTML='<iframe srcdoc="'+escapeHtmlAttr(data.htmlContent)+'" style="width:100%;height:420px;border:none;"></iframe>';
+    document.getElementById('emailResult').style.display='block';
+
+    toast('Email template generated! Preview below.','success');
+  })
+  .catch(function(e){
+    toast('Failed: '+e.message,'error');
+  });
+}
+
+function refreshBGVList(){
+  var tbody=document.getElementById('bgvHistoryBody');
+  tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>';
+
+  fetch(API+'/bgv/links')
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data || data.length===0){
+      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#999">No verification links generated yet.</td></tr>';
+    } else {
+      tbody.innerHTML='';
+      data.forEach(function(item){
+        var statusBadge = item.status==='active'
+          ? '<span style="background:#e8f4e8;color:#16a34a;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;">Active</span>'
+          : '<span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;">Expired</span>';
+
+        var tr=document.createElement('tr');
+        tr.innerHTML=
+          '<td><code style="font-size:12px;">'+item.verificationId+'</code></td>'+
+          '<td>'+item.accountId+'</td>'+
+          '<td>'+item.bankName+'</td>'+
+          '<td>'+statusBadge+'</td>'+
+          '<td>'+item.accessCount+' time(s)'+(item.lastAccessedAt!=='-' ? '<br><span style="font-size:11px;color:#999">'+item.lastAccessedAt+'</span>' : '')+'</td>'+
+          '<td style="font-size:12px;color:#666">'+item.createdAt+'</td>'+
+          '<td><div style="display:flex;gap:6px;flex-wrap:wrap;">'+
+            '<a href="'+item.viewUrl+'" target="_blank" class="btn btn-sm btn-primary" style="text-decoration:none">Open</a>'+
+            '<button class="btn btn-sm btn-outline" onclick="copyText(\''+item.viewUrl+'\')">Copy</button>'+
+          '</div></td>';
+        tbody.appendChild(tr);
+      });
+    }
+  })
+  .catch(function(e){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:#dc2626">Error: '+e.message+'</td></tr>';
+  });
+}
+
+function escapeHtmlAttr(str){
+  return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyText(text){
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(function(){
+      toast('Copied!','success');
+    }).catch(function(){fallbackCopy(text);});
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+// Initialize BGV history when tab is shown
+document.addEventListener('DOMContentLoaded',function(){
+  // Patch sidebar click to also init BGV
+  var origSwitch=switchTab;
+  window.switchTab=function(tabName){
+    origSwitch(tabName);
+    if(tabName==='bgv'){
+      refreshBGVList();
+    }
+  };
+});

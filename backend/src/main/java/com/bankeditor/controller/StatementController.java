@@ -9,8 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.itextpdf.text.pdf.PdfReader;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api")
@@ -119,6 +122,81 @@ public class StatementController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @PostMapping("/import-pdf")
+    public ResponseEntity<Map<String, Object>> importPdf(@RequestParam("file") MultipartFile file) {
+        try {
+            byte[] pdfBytes = file.getBytes();
+            PdfReader reader = new PdfReader(pdfBytes);
+            StringBuilder text = new StringBuilder();
+            for (int i = 1; i <= reader.getNumberOfPages(); i++) {
+                text.append(com.itextpdf.text.pdf.parser.PdfTextExtractor.getTextFromPage(reader, i));
+            }
+            reader.close();
+
+            String content = text.toString();
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", "ok");
+            result.put("extractedText", content.substring(0, Math.min(content.length(), 5000)));
+
+            // Try to extract known fields via regex
+            String bankName = tryExtract(content, Arrays.asList(
+                "(?i)([A-Z]+\\s*BANK)",
+                "(?i)(BANK\\s+OF\\s+\\w+)",
+                "(?i)(\\w+\\s+BANK\\s*$)"
+            ));
+            result.put("bankName", bankName != null ? bankName : "Imported Bank");
+
+            String accountNumber = tryExtract(content, Arrays.asList(
+                "(?:A/C|ACCOUNT|Account)(?:\\s*No|\\s*Number|\\s*#)?[\\s:.#]+(\\d{9,18})",
+                "(\\d{9,18})"
+            ));
+            result.put("accountNumber", accountNumber != null ? accountNumber : "");
+
+            String holderName = tryExtract(content, Arrays.asList(
+                "(?:Account Holder|Account Name|Name|Customer)[\\s:]+([A-Za-z\\s.]+?)(?:\\n|Account|Branch)",
+                "([A-Z][a-z]+\\s+[A-Z][a-z]+)"
+            ));
+            result.put("accountHolder", holderName != null ? holderName.trim() : "Imported Holder");
+
+            // Extract statement period
+            String period = tryExtract(content, Arrays.asList(
+                "(?:Period|Statement|For the month)[\\s:]+([A-Za-z]+\\s+\\d{4})",
+                "([A-Z][a-z]+\\s+\\d{4})"
+            ));
+            result.put("period", period != null ? period : "Monthly Statement");
+
+            // Extract balance amounts
+            String openingBal = tryExtract(content, Arrays.asList(
+                "(?:Opening|Open)(?: Balance)?[\\s:]+[\\u20B9Rs.]*(\\d+[\\.,]\\d{2})",
+                "(?:Opening|Open)(?: Balance)?[\\s:]*(\\d+[\\.,]\\d{0,2})"
+            ));
+            result.put("openingBalance", openingBal != null ? openingBal.replace(",", "") : "0.00");
+
+            String closingBal = tryExtract(content, Arrays.asList(
+                "(?:Closing|Balance)[\\s:]+[\\u20B9Rs.]*(\\d+[\\.,]\\d{2})",
+                "(?:Closing Balance|Balance)[\\s:]*(\\d+[\\.,]\\d{0,2})",
+                "BALANCE\\s*[:\\s]+(\\d+[\\.,]\\d{0,2})"
+            ));
+            result.put("closingBalance", closingBal != null ? closingBal.replace(",", "") : "0.00");
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("status", "ok",
+                "message", "Could not extract text from this PDF. Try entering data manually."));
+        }
+    }
+
+    private String tryExtract(String content, List<String> patterns) {
+        for (String pattern : patterns) {
+            Matcher m = Pattern.compile(pattern).matcher(content);
+            if (m.find() && m.groupCount() >= 1) {
+                String val = m.group(1);
+                if (val != null && !val.isBlank()) return val.trim();
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> createDefaultData(String accountId) {
