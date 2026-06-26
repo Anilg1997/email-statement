@@ -67,7 +67,7 @@
             <div class="form-group">
               <label>Account Number</label>
               <input type="text" id="accountNumber" value="1234567890" placeholder="Account number">
-              <span class="field-hint">Last 4 digits = PDF password</span>
+              <span class="field-hint">Enter your full account number</span>
             </div>
           </div>
           <div class="form-row">
@@ -193,12 +193,11 @@
               <tr>
                 <th>Account ID</th>
                 <th>File</th>
-                <th>Password</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody id="uploadListBody">
-              <tr><td colspan="4" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>
+              <tr><td colspan="3" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -220,7 +219,7 @@
           <div class="help-step"><div class="help-num">1</div><div><strong>Fill Details</strong> &mdash; Bank name, account holder, account number, etc.</div></div>
           <div class="help-step"><div class="help-num">2</div><div><strong>Add Transactions</strong> &mdash; Click "Add Row" to add/edit transaction rows</div></div>
           <div class="help-step"><div class="help-num">3</div><div><strong>Check Summary</strong> &mdash; Totals auto-calculate from your transactions</div></div>
-          <div class="help-step"><div class="help-num">4</div><div><strong>Download</strong> &mdash; Plain PDF (no password) or Encrypted PDF (password = last 4 digits of account)</div></div>
+          <div class="help-step"><div class="help-num">4</div><div><strong>Download</strong> &mdash; Plain PDF (no password) or Encrypted PDF (for password-protected statements)</div></div>
         </div>
       </div>
       <div class="card">
@@ -233,14 +232,12 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><h2>Password Info</h2></div>
+        <div class="card-header"><h2>Replace Endpoint</h2></div>
         <div class="card-body">
           <div class="info-box">
-            <strong>PDF User Password:</strong> Last 4 digits of Account Number<br>
-            <strong>Example:</strong> Account <code>1234567890</code> &rarr; Password <code>7890</code><br><br>
-            <strong>Owner Password:</strong> <code>bank_owner_key</code><br><br>
             <strong>Replace endpoint:</strong> <code>GET /api/replace?accountId=XXXXX</code><br>
-            <strong>Test it:</strong> <a href="/api/replace?accountId=1234567890" target="_blank">/api/replace?accountId=1234567890</a>
+            <strong>Test it:</strong> <a href="/api/replace?accountId=1234567890" target="_blank">/api/replace?accountId=1234567890</a><br><br>
+            <strong>Note:</strong> The replace endpoint serves PDFs without encryption so they open instantly in your browser, just like a real bank statement.
           </div>
         </div>
       </div>

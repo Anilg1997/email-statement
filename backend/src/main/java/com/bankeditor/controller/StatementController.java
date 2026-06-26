@@ -109,13 +109,11 @@ public class StatementController {
                 if (data == null) data = createDefaultData(accountId);
                 pdfBytes = pdfGenerationService.generateStatement(data);
             }
-            String password = accountId.substring(Math.max(0, accountId.length() - 4));
-            byte[] encryptedPdf = pdfEncryptionService.encryptPdf(pdfBytes, password);
             HttpHeaders h = new HttpHeaders();
             h.setContentType(MediaType.APPLICATION_PDF);
             h.setContentDispositionFormData("inline", "statement.pdf");
-            h.setContentLength(encryptedPdf.length);
-            return ResponseEntity.ok().headers(h).body(encryptedPdf);
+            h.setContentLength(pdfBytes.length);
+            return ResponseEntity.ok().headers(h).body(pdfBytes);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
