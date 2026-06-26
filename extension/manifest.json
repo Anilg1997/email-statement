@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Bank Statement Replacer",
+  "version": "1.0.0",
+  "description": "Replaces bank statement PDFs with custom encrypted PDFs from your editor",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "http://localhost:8080/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Bank Statement Replacer"
+  }
+}

@@ -1,0 +1,22 @@
+# Build artifacts
+backend/target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# H2 database files
+data/
+
+# Temp files
+*.tmp
+*.log
+*.zip
+
+# PowerShell temp
+$TEMP/

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank Statement Editor & Replacer</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="header-content">
+    <div class="logo">
+      <div class="logo-icon">B</div>
+      <div>
+        <div class="logo-text">Bank Statement Tool</div>
+        <div class="logo-sub">Edit, Upload & Encrypt Bank Statements</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="badge">v2.0</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="sidebar">
+    <div class="sidebar-item active" data-tab="editor">
+      <span class="sidebar-icon">&#9998;</span> Statement Editor
+    </div>
+    <div class="sidebar-item" data-tab="upload">
+      <span class="sidebar-icon">&#128228;</span> Upload PDF
+    </div>
+    <div class="sidebar-item" data-tab="help">
+      <span class="sidebar-icon">&#63;</span> Help & Guide
+    </div>
+    <div class="sidebar-item" data-tab="extension">
+      <span class="sidebar-icon">&#9881;</span> Chrome Extension
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- ========== EDITOR TAB ========== -->
+    <div id="tab-editor" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <h2>Statement Details</h2>
+          <span class="card-hint">Create a custom bank statement from scratch</span>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bank Name</label>
+              <input type="text" id="bankName" value="HDFC Bank" placeholder="e.g. HDFC Bank">
+            </div>
+            <div class="form-group">
+              <label>Statement Period</label>
+              <input type="text" id="period" value="January 2026" placeholder="e.g. January 2026">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Account Holder Name</label>
+              <input type="text" id="accountHolder" value="Rahul Sharma" placeholder="Full name">
+            </div>
+            <div class="form-group">
+              <label>Account Number</label>
+              <input type="text" id="accountNumber" value="1234567890" placeholder="Account number">
+              <span class="field-hint">Last 4 digits = PDF password</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Branch</label>
+              <input type="text" id="branch" value="Koramangala Branch" placeholder="Branch name">
+            </div>
+            <div class="form-group">
+              <label>IFSC Code</label>
+              <input type="text" id="ifsc" value="HDFC0001234" placeholder="IFSC code">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="address" value="123, MG Road, Bangalore - 560001" placeholder="Full address">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Transactions</h2>
+          <span class="card-hint">Add/edit/remove transaction rows</span>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-outline" onclick="addTransaction()">+ Add Row</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table id="txnTable">
+              <thead>
+                <tr>
+                  <th style="width:15%">Date</th>
+                  <th style="width:40%">Description</th>
+                  <th style="width:15%">Debit (&#8377;)</th>
+                  <th style="width:15%">Credit (&#8377;)</th>
+                  <th style="width:15%">Action</th>
+                </tr>
+              </thead>
+              <tbody id="txnBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Balance Summary</h2>
+          <span class="card-hint">Auto-calculated</span>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Opening (&#8377;)</label>
+              <input type="text" id="openingBalance" value="25000.00" oninput="updateSummary()">
+            </div>
+            <div class="form-group">
+              <label>Total Debits (&#8377;)</label>
+              <input type="text" id="totalDebits" readonly class="readonly-field">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Total Credits (&#8377;)</label>
+              <input type="text" id="totalCredits" readonly class="readonly-field">
+            </div>
+            <div class="form-group">
+              <label>Closing Balance (&#8377;)</label>
+              <input type="text" id="closingBalance" readonly class="readonly-field highlight-field">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
+        <div class="action-right">
+          <button class="btn btn-outline" onclick="downloadPlain()">Download Plain PDF</button>
+          <button class="btn btn-primary" onclick="downloadEncrypted()">Download Encrypted PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== UPLOAD TAB ========== -->
+    <div id="tab-upload" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Upload PDF for Replacement</h2>
+          <span class="card-hint">Upload any PDF to replace bank statements for a specific account</span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Account ID</label>
+            <input type="text" id="uploadAccountId" value="1234567890" placeholder="Account number">
+            <span class="field-hint">Must match the account used in Chrome Extension</span>
+          </div>
+          <div class="form-group">
+            <label>Select PDF File</label>
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-icon">&#128196;</div>
+              <div class="upload-text">Drag & drop your PDF here, or <strong>click to browse</strong></div>
+              <div class="upload-hint">Supports any PDF file (max 50 MB)</div>
+              <input type="file" id="fileInput" accept=".pdf" hidden>
+            </div>
+            <div id="fileInfo" class="file-info" style="display:none">
+              <span id="fileName"></span>
+              <button class="btn-icon" onclick="clearFile()">&#10005;</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="uploadPdf()">&#128228; Upload & Save for Replacement</button>
+          <div id="uploadStatus" class="upload-status"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Uploaded Statements</h2>
+          <span class="card-hint">These PDFs will be served via the replace endpoint</span>
+        </div>
+        <div class="card-body p-0">
+          <table id="uploadListTable" class="data-table">
+            <thead>
+              <tr>
+                <th>Account ID</th>
+                <th>File</th>
+                <th>Password</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="uploadListBody">
+              <tr><td colspan="4" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-outline" onclick="refreshList()">&#8635; Refresh List</button>
+        <div class="action-right">
+          <span class="badge badge-info" id="uploadCount">0 files uploaded</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== HELP TAB ========== -->
+    <div id="tab-help" class="tab-content">
+      <div class="card">
+        <div class="card-header"><h2>How to Use - Statement Editor</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div><strong>Fill Details</strong> &mdash; Bank name, account holder, account number, etc.</div></div>
+          <div class="help-step"><div class="help-num">2</div><div><strong>Add Transactions</strong> &mdash; Click "Add Row" to add/edit transaction rows</div></div>
+          <div class="help-step"><div class="help-num">3</div><div><strong>Check Summary</strong> &mdash; Totals auto-calculate from your transactions</div></div>
+          <div class="help-step"><div class="help-num">4</div><div><strong>Download</strong> &mdash; Plain PDF (no password) or Encrypted PDF (password = last 4 digits of account)</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>How to Use - Upload PDF</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div>Go to <strong>Upload PDF</strong> tab</div></div>
+          <div class="help-step"><div class="help-num">2</div><div>Enter the <strong>Account ID</strong> (must match Chrome Extension settings)</div></div>
+          <div class="help-step"><div class="help-num">3</div><div>Drag & drop or click to select a PDF file</div></div>
+          <div class="help-step"><div class="help-num">4</div><div>Click <strong>Upload</strong> &mdash; the PDF is stored and will be served via the replace endpoint</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Password Info</h2></div>
+        <div class="card-body">
+          <div class="info-box">
+            <strong>PDF User Password:</strong> Last 4 digits of Account Number<br>
+            <strong>Example:</strong> Account <code>1234567890</code> &rarr; Password <code>7890</code><br><br>
+            <strong>Owner Password:</strong> <code>bank_owner_key</code><br><br>
+            <strong>Replace endpoint:</strong> <code>GET /api/replace?accountId=XXXXX</code><br>
+            <strong>Test it:</strong> <a href="/api/replace?accountId=1234567890" target="_blank">/api/replace?accountId=1234567890</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EXTENSION TAB ========== -->
+    <div id="tab-extension" class="tab-content">
+      <div class="card">
+        <div class="card-header"><h2>Chrome Extension Setup</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div>Open Chrome &rarr; <code>chrome://extensions/</code></div></div>
+          <div class="help-step"><div class="help-num">2</div><div>Enable <strong>Developer mode</strong> (toggle top-right)</div></div>
+          <div class="help-step"><div class="help-num">3</div><div>Click <strong>Load unpacked</strong> &rarr; select <code>extension/</code> folder</div></div>
+          <div class="help-step"><div class="help-num">4</div><div>Click extension icon &rarr; enter bank domain &amp; account ID &rarr; Save</div></div>
+          <div class="help-step"><div class="help-num">5</div><div>Done! Any PDF from your bank domain is now replaced with your custom statement</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="js/app.js"></script>
+</body>
+</html>
