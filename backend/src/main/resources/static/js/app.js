@@ -160,7 +160,7 @@ function uploadPdf(){
   .then(function(r){return r.json();})
   .then(function(d){
     if(d.status==='ok'){
-      status.textContent='Uploaded successfully!';
+      status.textContent='Uploaded successfully! Password: '+accountId.slice(-4);
       status.className='upload-status success';clearFile();refreshList();
       toast('PDF uploaded for account '+accountId,'success');
     } else { status.textContent='Error: '+d.message;status.className='upload-status error'; }
@@ -177,9 +177,10 @@ function refreshList(){
     } else {
       tbody.innerHTML='';
       data.forEach(function(item){
+        var pw=item.accountId.length>=4?item.accountId.slice(-4):item.accountId;
         var tr=document.createElement('tr');
         tr.innerHTML='<td><strong>'+item.accountId+'</strong></td>'+
-          '<td>'+item.file+'</td>'+
+          '<td>'+item.file+'</td><td><code>'+pw+'</code></td>'+
           '<td><a href="'+API+'/replace?accountId='+item.accountId+'" target="_blank" class="btn btn-sm btn-outline" style="text-decoration:none">Open PDF</a></td>';
         tbody.appendChild(tr);
       });
