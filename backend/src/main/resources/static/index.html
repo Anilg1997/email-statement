@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank Statement Editor & Replacer</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="header-content">
+    <div class="logo">
+      <div class="logo-icon">B</div>
+      <div>
+        <div class="logo-text">Bank Statement Tool</div>
+        <div class="logo-sub">Edit, Upload & Encrypt Bank Statements</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="badge">v2.0</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="sidebar">
+    <div class="sidebar-item active" data-tab="editor">
+      <span class="sidebar-icon">&#9998;</span> Statement Editor
+    </div>
+    <div class="sidebar-item" data-tab="upload">
+      <span class="sidebar-icon">&#128228;</span> Upload PDF
+    </div>
+    <div class="sidebar-item" data-tab="help">
+      <span class="sidebar-icon">&#63;</span> Help & Guide
+    </div>
+    <div class="sidebar-item" data-tab="extension">
+      <span class="sidebar-icon">&#9881;</span> Chrome Extension
+    </div>
+    <div class="sidebar-item" data-tab="bgv">
+      <span class="sidebar-icon">&#128737;</span> BGV Verification
+    </div>
+    <div class="sidebar-item" data-tab="email-send">
+      <span class="sidebar-icon">&#9993;</span> Email & Tracking
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- ========== EDITOR TAB ========== -->
+    <div id="tab-editor" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <h2>Statement Details</h2>
+          <span class="card-hint">Create a custom bank statement from scratch</span>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bank Name</label>
+              <input type="text" id="bankName" value="HDFC Bank" placeholder="e.g. HDFC Bank" list="bankPresets">
+              <datalist id="bankPresets">
+                <option value="HDFC Bank">
+                <option value="ICICI Bank">
+                <option value="State Bank of India (SBI)">
+                <option value="Axis Bank">
+                <option value="Yes Bank">
+                <option value="Kotak Mahindra Bank">
+                <option value="IDBI Bank">
+                <option value="Bank of Baroda">
+                <option value="PNB">
+                <option value="Canara Bank">
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label>Statement Period</label>
+              <input type="text" id="period" value="January 2026" placeholder="e.g. January 2026">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Account Holder Name</label>
+              <input type="text" id="accountHolder" value="Rahul Sharma" placeholder="Full name">
+            </div>
+            <div class="form-group">
+              <label>Account Number</label>
+              <input type="text" id="accountNumber" value="1234567890" placeholder="Account number">
+              <span class="field-hint">Last 4 digits = PDF password when opened</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Branch</label>
+              <input type="text" id="branch" value="Koramangala Branch" placeholder="Branch name">
+            </div>
+            <div class="form-group">
+              <label>IFSC Code</label>
+              <input type="text" id="ifsc" value="HDFC0001234" placeholder="IFSC code">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="address" value="123, MG Road, Bangalore - 560001" placeholder="Full address">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Transactions</h2>
+          <span class="card-hint">Add/edit/remove transaction rows</span>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-outline" onclick="addTransaction()">+ Add Row</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-wrapper">
+            <table id="txnTable">
+              <thead>
+                <tr>
+                  <th style="width:15%">Date</th>
+                  <th style="width:40%">Description</th>
+                  <th style="width:15%">Debit (&#8377;)</th>
+                  <th style="width:15%">Credit (&#8377;)</th>
+                  <th style="width:15%">Action</th>
+                </tr>
+              </thead>
+              <tbody id="txnBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Balance Summary</h2>
+          <span class="card-hint">Auto-calculated</span>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Opening (&#8377;)</label>
+              <input type="text" id="openingBalance" value="25000.00" oninput="updateSummary()">
+            </div>
+            <div class="form-group">
+              <label>Total Debits (&#8377;)</label>
+              <input type="text" id="totalDebits" readonly class="readonly-field">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Total Credits (&#8377;)</label>
+              <input type="text" id="totalCredits" readonly class="readonly-field">
+            </div>
+            <div class="form-group">
+              <label>Closing Balance (&#8377;)</label>
+              <input type="text" id="closingBalance" readonly class="readonly-field highlight-field">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Import from Real PDF</h2>
+          <span class="card-hint">Upload your real bank statement PDF to pre-fill the editor</span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Upload Real Statement PDF</label>
+            <div class="import-zone" id="importZone">
+              <div class="upload-icon">&#128196;</div>
+              <div class="upload-text">Upload your real bank PDF &mdash; we'll extract the data and pre-fill the form</div>
+              <div class="upload-hint">Accepts password-protected PDFs (you need to know the password)</div>
+              <input type="file" id="importFileInput" accept=".pdf" hidden>
+            </div>
+            <div id="importFileInfo" class="file-info" style="display:none">
+              <span id="importFileName"></span>
+              <button class="btn-icon" onclick="clearImportFile()">&#10005;</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="importPdfToEditor()">
+            &#128229; Import Data from PDF & Fill Editor
+          </button>
+          <div id="importStatus" class="upload-status"></div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-secondary" onclick="resetForm()">Reset</button>
+        <div class="action-right">
+          <button class="btn btn-outline" onclick="downloadPlain()">Download Plain PDF</button>
+          <button class="btn btn-primary" onclick="downloadEncrypted()">Download Encrypted PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== UPLOAD TAB ========== -->
+    <div id="tab-upload" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Upload PDF for Replacement</h2>
+          <span class="card-hint">Upload any PDF to replace bank statements for a specific account</span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Account ID</label>
+            <input type="text" id="uploadAccountId" value="1234567890" placeholder="Account number">
+            <span class="field-hint">Must match the account used in Chrome Extension</span>
+          </div>
+          <div class="form-group">
+            <label>Select PDF File</label>
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-icon">&#128196;</div>
+              <div class="upload-text">Drag & drop your PDF here, or <strong>click to browse</strong></div>
+              <div class="upload-hint">Supports any PDF file (max 50 MB)</div>
+              <input type="file" id="fileInput" accept=".pdf" hidden>
+            </div>
+            <div id="fileInfo" class="file-info" style="display:none">
+              <span id="fileName"></span>
+              <button class="btn-icon" onclick="clearFile()">&#10005;</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="uploadPdf()">&#128228; Upload & Save for Replacement</button>
+          <div id="uploadStatus" class="upload-status"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Uploaded Statements</h2>
+          <span class="card-hint">These PDFs will be served via the replace endpoint</span>
+        </div>
+        <div class="card-body p-0">
+          <table id="uploadListTable" class="data-table">
+            <thead>
+              <tr>
+                <th>Account ID</th>
+                <th>File</th>
+                <th>Password</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="uploadListBody">
+              <tr><td colspan="4" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-outline" onclick="refreshList()">&#8635; Refresh List</button>
+        <div class="action-right">
+          <span class="badge badge-info" id="uploadCount">0 files uploaded</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== HELP TAB ========== -->
+    <div id="tab-help" class="tab-content">
+      <div class="card">
+        <div class="card-header"><h2>How to Use - Statement Editor</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div><strong>Fill Details</strong> &mdash; Bank name, account holder, account number, etc.</div></div>
+          <div class="help-step"><div class="help-num">2</div><div><strong>Add Transactions</strong> &mdash; Click "Add Row" to add/edit transaction rows</div></div>
+          <div class="help-step"><div class="help-num">3</div><div><strong>Check Summary</strong> &mdash; Totals auto-calculate from your transactions</div></div>
+          <div class="help-step"><div class="help-num">4</div><div><strong>Download</strong> &mdash; Plain PDF (no password) or Encrypted PDF (for password-protected statements)</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>How to Use - Upload PDF</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div>Go to <strong>Upload PDF</strong> tab</div></div>
+          <div class="help-step"><div class="help-num">2</div><div>Enter the <strong>Account ID</strong> (must match Chrome Extension settings)</div></div>
+          <div class="help-step"><div class="help-num">3</div><div>Drag & drop or click to select a PDF file</div></div>
+          <div class="help-step"><div class="help-num">4</div><div>Click <strong>Upload</strong> &mdash; the PDF is stored and will be served via the replace endpoint</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Password Info</h2></div>
+        <div class="card-body">
+          <div class="info-box">
+            The replace endpoint encrypts PDFs with <strong>AES-256</strong> — just like real bank statements.<br><br>
+            <strong>PDF Password:</strong> Last 4 digits of Account Number<br>
+            <strong>Example:</strong> Account <code>9876543210</code> &rarr; Password <code>3210</code><br><br>
+            <strong>Replace endpoint:</strong> <code>GET /api/replace?accountId=XXXXX</code><br>
+            <strong>Test it:</strong> <a href="/api/replace?accountId=1234567890" target="_blank">/api/replace?accountId=1234567890</a><br>
+            <em>Opens with password: <code>7890</code></em>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== BGV VERIFICATION TAB ========== -->
+    <div id="tab-bgv" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>BGV Verification Portal</h2>
+          <span class="card-hint">Generate verification links &amp; email templates for background verification</span>
+        </div>
+        <div class="card-body">
+          <div class="bgv-scenarios">
+            <div class="scenario-card" onclick="switchBGVTab('screen-share')">
+              <div class="scenario-icon">&#128187;</div>
+              <div class="scenario-title">Screen Share (Video Call)</div>
+              <div class="scenario-desc">Generate a bank portal page to show during video verification</div>
+            </div>
+            <div class="scenario-card" onclick="switchBGVTab('email')">
+              <div class="scenario-icon">&#9993;</div>
+              <div class="scenario-title">Email Confirmation</div>
+              <div class="scenario-desc">Generate an email template with statement link for BGV team</div>
+            </div>
+            <div class="scenario-card" onclick="switchBGVTab('history')">
+              <div class="scenario-icon">&#128214;</div>
+              <div class="scenario-title">Verification History</div>
+              <div class="scenario-desc">View all generated verification links and their access logs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen Share / Portal View -->
+      <div id="bgv-screen-share" class="bgv-subtab">
+        <div class="card">
+          <div class="card-header">
+            <h2>Bank Portal Viewer</h2>
+            <span class="card-hint">For video call screen share - shows statement inside a realistic bank portal</span>
+          </div>
+          <div class="card-body">
+            <p class="bgv-info-text">Generate a link that opens a realistic bank net-banking portal page showing the statement. Share your screen during the video call and open this link in your browser.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Account ID</label>
+                <input type="text" id="bgvAccountId" value="1234567890" placeholder="Account number">
+              </div>
+              <div class="form-group">
+                <label>Bank Name</label>
+                <input type="text" id="bgvBankName" value="HDFC Bank" placeholder="Bank name">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Account Holder Name</label>
+                <input type="text" id="bgvHolderName" value="Rahul Sharma" placeholder="Full name">
+              </div>
+              <div class="form-group">
+                <label>Verification Mode</label>
+                <select id="bgvMode" class="form-select">
+                  <option value="portal">Portal View (for screen share)</option>
+                  <option value="pdf">PDF Download (send as attachment)</option>
+                  <option value="email">Email View (for email confirmation)</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="generateBGVLink()">
+              &#128279; Generate Verification Link
+            </button>
+            <div id="bgvLinkResult" class="bgv-result" style="display:none">
+              <div class="bgv-result-header">
+                <span class="bgv-result-icon">&#9989;</span>
+                <span>Verification link generated successfully!</span>
+              </div>
+              <div class="bgv-result-body">
+                <div class="bgv-url-box">
+                  <label>Verification URL:</label>
+                  <div class="url-display">
+                    <code id="bgvViewUrl"></code>
+                    <button class="btn btn-sm btn-outline" onclick="copyBGVUrl()">Copy</button>
+                  </div>
+                </div>
+                <div class="bgv-url-box">
+                  <label>PDF Password:</label>
+                  <div class="url-display">
+                    <code id="bgvPassword" class="bgv-password"></code>
+                  </div>
+                </div>
+                <div class="bgv-url-box">
+                  <label>Verification ID:</label>
+                  <div class="url-display">
+                    <code id="bgvVerificationId"></code>
+                  </div>
+                </div>
+                <div class="bgv-actions">
+                  <a id="bgvOpenLink" href="#" target="_blank" class="btn btn-primary">
+                    &#128065; Open Portal View
+                  </a>
+                  <a id="bgvOpenPdf" href="/api/replace?accountId=1234567890" target="_blank" class="btn btn-outline">
+                    &#128196; Download PDF
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Confirmation -->
+      <div id="bgv-email" class="bgv-subtab" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <h2>Email Confirmation Template</h2>
+            <span class="card-hint">Generate a bank email with statement for BGV confirmation</span>
+          </div>
+          <div class="card-body">
+            <p class="bgv-info-text">Generate a realistic email template that looks like it came from the bank. Use this when BGV sends an email asking to confirm your bank statement.</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Account ID</label>
+                <input type="text" id="emailAccountId" value="1234567890" placeholder="Account number">
+              </div>
+              <div class="form-group">
+                <label>Bank Name</label>
+                <input type="text" id="emailBankName" value="HDFC Bank" placeholder="Bank name">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Account Holder</label>
+                <input type="text" id="emailHolderName" value="Rahul Sharma" placeholder="Full name">
+              </div>
+              <div class="form-group">
+                <label>BGV Email Address</label>
+                <input type="text" id="emailTo" value="bgv-team@verification-company.com" placeholder="bgv@company.com">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Verification ID (from above)</label>
+              <input type="text" id="emailVerificationId" placeholder="Paste verification ID here">
+              <span class="field-hint">First generate a link above, then paste the verification ID here</span>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="generateEmailTemplate()">
+              &#9993; Generate Email Template
+            </button>
+            <div id="emailResult" class="bgv-result" style="display:none">
+              <div class="bgv-result-header">
+                <span class="bgv-result-icon">&#9989;</span>
+                <span>Email template generated!</span>
+              </div>
+              <div class="bgv-result-body">
+                <div class="bgv-url-box">
+                  <label>From:</label>
+                  <code id="emailFrom"></code>
+                </div>
+                <div class="bgv-url-box">
+                  <label>Subject:</label>
+                  <code id="emailSubject"></code>
+                </div>
+                <div class="bgv-url-box">
+                  <label>Email Preview:</label>
+                  <div class="email-preview" id="emailPreview"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div id="bgv-history" class="bgv-subtab" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <h2>Verification History</h2>
+            <span class="card-hint">Track all generated verification links</span>
+            <div class="card-actions">
+              <button class="btn btn-sm btn-outline" onclick="refreshBGVList()">&#8635; Refresh</button>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Verification ID</th>
+                  <th>Account</th>
+                  <th>Bank</th>
+                  <th>Status</th>
+                  <th>Accessed</th>
+                  <th>Created</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="bgvHistoryBody">
+                <tr><td colspan="7" style="text-align:center;padding:30px;color:#999">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Usage Tips for BGV Scenarios</h2>
+          </div>
+          <div class="card-body">
+            <div class="help-step"><div class="help-num">1</div><div><strong>Video Call Screen Share</strong> &mdash; Generate a portal link, open it in your browser, then share your screen. The page looks like the bank's net-banking portal showing your statement. Enter the password (last 4 digits) if prompted to download the PDF.</div></div>
+            <div class="help-step"><div class="help-num">2</div><div><strong>Email Confirmation</strong> &mdash; When BGV sends an email asking to confirm, generate the email template, copy the content, and forward it to BGV. The email looks like it came from the bank's official noreply address.</div></div>
+            <div class="help-step"><div class="help-num">3</div><div><strong>Verification Link</strong> &mdash; Share the verification URL directly with BGV. When they open it, they see the bank portal page with the statement. The link tracks how many times it was accessed.</div></div>
+            <div class="help-step"><div class="help-num">4</div><div><strong>PDF Password</strong> &mdash; Always remember: password = <strong>last 4 digits of account number</strong>. Tell BGV to use this when opening the encrypted PDF.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EXTENSION TAB ========== -->
+    <div id="tab-extension" class="tab-content">
+      <div class="card">
+        <div class="card-header"><h2>Chrome Extension Setup</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div>Open Chrome &rarr; <code>chrome://extensions/</code></div></div>
+          <div class="help-step"><div class="help-num">2</div><div>Enable <strong>Developer mode</strong> (toggle top-right)</div></div>
+          <div class="help-step"><div class="help-num">3</div><div>Click <strong>Load unpacked</strong> &rarr; select <code>extension/</code> folder</div></div>
+          <div class="help-step"><div class="help-num">4</div><div>Click extension icon &rarr; enter bank domain &amp; account ID &rarr; Save</div></div>
+          <div class="help-step"><div class="help-num">5</div><div>Done! Any PDF from your bank domain is now replaced with your custom statement</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== EMAIL & TRACKING TAB ========== -->
+    <div id="tab-email-send" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Email Configuration (SMTP)</h2>
+          <span class="card-hint">Configure SMTP to send edited PDFs via email</span>
+        </div>
+        <div class="card-body">
+          <div id="emailConfigStatus" class="upload-status" style="display:none"></div>
+          <p class="bgv-info-text">Set up your email SMTP settings so you can send the edited PDF statement back to any email address. Works with Gmail, Outlook, Yahoo, etc.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>SMTP Host</label>
+              <input type="text" id="smtpHost" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Port</label>
+              <input type="text" id="smtpPort" value="587" placeholder="587">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email Address (Username)</label>
+              <input type="text" id="smtpUsername" placeholder="your-email@gmail.com">
+            </div>
+            <div class="form-group">
+              <label>Password / App Password</label>
+              <input type="password" id="smtpPassword" placeholder="App-specific password">
+              <span class="field-hint">For Gmail: use App Password (not your regular password). Generate at myaccount.google.com/apppasswords</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>From Name</label>
+              <input type="text" id="smtpFromName" value="Bank Statement Service" placeholder="Display name">
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="smtpUseSsl" checked> Use SSL/TLS
+              </label>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveEmailConfig()">Save Email Configuration</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Send Edited PDF via Email</h2>
+          <span class="card-hint">Send the replacement PDF to any email address</span>
+        </div>
+        <div class="card-body">
+          <p class="bgv-info-text">Enter the email address where you want to send the edited PDF statement. The PDF will be attached to the email with the bank's password protection.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Send To (Email Address)</label>
+              <input type="email" id="sendToEmail" placeholder="recipient@email.com">
+              <span class="field-hint">This can be the same email that received the original bank statement</span>
+            </div>
+            <div class="form-group">
+              <label>Account ID</label>
+              <input type="text" id="sendAccountId" value="1234567890" placeholder="Account number">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bank Name</label>
+              <input type="text" id="sendBankName" value="HDFC Bank" placeholder="Bank name">
+            </div>
+            <div class="form-group">
+              <label>Account Holder</label>
+              <input type="text" id="sendHolderName" value="Rahul Sharma" placeholder="Account holder name">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="sendStatementEmail()">
+            &#9993; Send Edited PDF via Email
+          </button>
+          <div id="sendEmailResult" class="upload-status" style="display:none"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>PDF Access Tracking</h2>
+          <span class="card-hint">See when your statement PDFs are opened/downloaded</span>
+          <div class="card-actions">
+            <button class="btn btn-sm btn-outline" onclick="refreshAccessLog()">&#8635; Refresh</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Filter by Account ID (leave empty for all)</label>
+            <input type="text" id="accessLogFilter" placeholder="Filter by account ID">
+          </div>
+          <div id="accessLogStats" style="display:none;margin-bottom:16px;"></div>
+        </div>
+        <div class="card-body p-0">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Account ID</th>
+                <th>IP Address</th>
+                <th>Source</th>
+                <th>User Agent</th>
+              </tr>
+            </thead>
+            <tbody id="accessLogBody">
+              <tr><td colspan="5" style="text-align:center;padding:30px;color:#999">Click Refresh to load access logs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>How Email &amp; Tracking Works</h2></div>
+        <div class="card-body">
+          <div class="help-step"><div class="help-num">1</div><div><strong>Configure SMTP</strong> &mdash; Enter your Gmail/Outlook SMTP settings above. For Gmail, generate an App Password at myaccount.google.com/apppasswords.</div></div>
+          <div class="help-step"><div class="help-num">2</div><div><strong>Edit Statement</strong> &mdash; Go to Statement Editor tab, create/edit your bank statement.</div></div>
+          <div class="help-step"><div class="help-num">3</div><div><strong>Send via Email</strong> &mdash; Enter the recipient email (same email that got the original statement), and click Send. The edited PDF is attached.</div></div>
+          <div class="help-step"><div class="help-num">4</div><div><strong>Track Access</strong> &mdash; When someone opens your statement PDF via the Chrome Extension intercept, it's logged here. You'll see the timestamp, IP, and source.</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="js/app.js"></script>
+</body>
+</html>

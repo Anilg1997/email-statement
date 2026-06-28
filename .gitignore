@@ -33,5 +33,15 @@ Thumbs.db
 # Docker
 .docker/
 
+# Java
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# Node
+node_modules/
+
 # Project specific
 .venv/
