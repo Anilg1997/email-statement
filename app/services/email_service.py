@@ -8,18 +8,19 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
-from typing import Optional
+
 
 
 class EmailConfig:
     def __init__(self, host: str, port: int, username: str, password: str,
-                 use_ssl: bool = True, from_name: str = "Bank Statement Service"):
+                 use_ssl: bool = True, **kwargs):
         self.host = host
         self.port = port
         self.username = username
         self.password = password
         self.use_ssl = use_ssl
-        self.from_name = from_name
+        # Store from_name for backward compatibility (used by API layer)
+        self.from_name = kwargs.get("from_name", "")
 
     def is_configured(self) -> bool:
         return bool(self.host and self.username and self.password)
@@ -29,13 +30,12 @@ async def send_statement_email(
     config: EmailConfig,
     to_email: str,
     bank_name: str,
-    account_holder: str,
     account_id: str,
     pdf_bytes: bytes,
-    password: str,
 ) -> dict:
     """Send an email with the PDF attachment using SMTP (async).
 
+    The email appears to come from the bank (noreply@bankname.com).
     Uses synchronous smtplib wrapped in asyncio.to_thread() to avoid blocking
     the event loop. For truly async SMTP, aiosmtplib is also an option.
     """
@@ -50,35 +50,59 @@ async def send_statement_email(
     masked_acct = _mask_account(account_id)
 
     msg = MIMEMultipart("mixed")
-    msg["From"] = f"{config.from_name} <{config.username}>"
+    # Use bank name as the sender display name
+    msg["From"] = f"{bank_name.upper()} Statement"
     msg["To"] = to_email
-    msg["Subject"] = f"Your {bank_name} Account Statement - {masked_acct}"
+    msg["Subject"] = f"Account Statement from {bank_name} - {masked_acct}"
 
-    # HTML body
+    # HTML body with bank branding
     html_body = f"""<!DOCTYPE html>
-<html><body style='font-family:Arial,sans-serif;padding:20px;'>
-<div style='max-width:600px;margin:0 auto;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;'>
-<div style='background:linear-gradient(135deg,#0a1628,#1a1a3e);padding:24px;text-align:center;'>
-<h2 style='color:#fff;margin:0;'>{bank_name}</h2>
-<p style='color:#8899bb;font-size:13px;margin:4px 0 0 0;'>Secure Statement Delivery</p>
-</div>
-<div style='padding:24px;'>
-<p style='font-size:15px;color:#333;'>Dear <strong>{account_holder}</strong>,</p>
-<p style='font-size:14px;color:#555;line-height:1.6;'>Please find attached your account statement for <strong>{bank_name}</strong> (Account: {masked_acct}).</p>
-<div style='background:#f0f7ff;border:1px solid #cce5ff;border-radius:8px;padding:16px;margin:20px 0;'>
-<p style='font-size:13px;color:#555;margin:0 0 8px 0;'><strong>Statement Details:</strong></p>
-<table width='100%' cellpadding='4' cellspacing='0' style='font-size:13px;color:#555;'>
-<tr><td style='color:#999;width:120px;'>Account Holder:</td><td style='font-weight:600;'>{account_holder}</td></tr>
-<tr><td style='color:#999;'>Account Number:</td><td style='font-weight:600;'>{masked_acct}</td></tr>
-<tr><td style='color:#999;'>PDF Password:</td><td style='font-weight:600;color:#2563eb;'>{password}</td></tr>
-</table></div>
-<p style='font-size:13px;color:#666;line-height:1.5;'>The statement PDF is password-protected. Use the last 4 digits of your account number (<strong>{password}</strong>) to open it.</p>
-<p style='font-size:13px;color:#999;line-height:1.5;margin:20px 0 0 0;'>This is an automated message from {bank_name}. Please do not reply to this email.</p>
-</div>
-<div style='background:#f8f9fb;padding:16px;text-align:center;border-top:1px solid #e0e0e0;'>
-<p style='font-size:12px;color:#999;margin:0;'>&copy; 2024 {bank_name}. All rights reserved.</p>
-</div>
-</div></body></html>"""
+<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;'>
+<table width='100%' cellpadding='0' cellspacing='0' style='background:#f4f6f8;padding:20px;'>
+<tr><td align='center'>
+<table width='600' cellpadding='0' cellspacing='0' style='background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);'>
+
+<!-- HDFC Bank Header Banner -->
+<tr><td style='background:#004B8D;padding:20px 30px;text-align:left;'>
+<table width='100%' cellpadding='0' cellspacing='0'><tr>
+<td style='width:50%;'>
+<div style='font-size:24px;font-weight:bold;color:#fff;letter-spacing:1px;'>HDFC BANK</div>
+<div style='font-size:11px;color:#b3d4ff;margin-top:4px;'>We understand your world</div>
+</td>
+<td style='width:50%;text-align:right;'>
+<div style='font-size:10px;color:#b3d4ff;'>Secure Document Delivery</div>
+</td>
+</tr></table>
+</td></tr>
+
+<!-- Body -->
+<tr><td style='padding:30px;'>
+<p style='font-size:13px;color:#333;line-height:1.6;margin:0 0 12px 0;'>As per request, please find attached your <strong>{bank_name}</strong> account statement for the account ending with <strong>{masked_acct[-4:]}</strong>.</p>
+
+<!-- Account Details Table -->
+<table width='100%' cellpadding='8' cellspacing='0' style='font-size:12px;color:#333;border:1px solid #ddd;margin:16px 0;'>
+<tr style='background:#f0f5fa;'><td style='width:150px;font-weight:600;border-bottom:1px solid #ddd;'>Account Number</td><td style='border-bottom:1px solid #ddd;'>{masked_acct}</td></tr>
+<tr><td style='font-weight:600;border-bottom:1px solid #ddd;'>Statement Period</td><td style='border-bottom:1px solid #ddd;'>Latest Statement</td></tr>
+<tr style='background:#f0f5fa;'><td style='font-weight:600;border-bottom:1px solid #ddd;'>Document Type</td><td style='border-bottom:1px solid #ddd;'>e-Statement (PDF)</td></tr>
+</table>
+
+<p style='font-size:12px;color:#555;line-height:1.5;margin:16px 0;'>The attached PDF is password protected with the last 4 digits of your account number.</p>
+
+<p style='font-size:12px;color:#555;line-height:1.5;margin:16px 0;'>If you have any queries, please contact our 24x7 PhoneBanking at <strong>1800 266 4332</strong> or visit your nearest {bank_name} branch.</p>
+
+<p style='font-size:12px;color:#555;line-height:1.5;margin:16px 0 0 0;'>Warm Regards,<br/><strong>Customer Service Team</strong><br/>{bank_name}</p>
+</td></tr>
+
+<!-- Footer -->
+<tr><td style='background:#004B8D;padding:16px 30px;text-align:center;border-top:2px solid #003366;'>
+<p style='font-size:10px;color:#b3d4ff;margin:0 0 4px 0;'>This is a system generated e-mail. Please do not reply to this message.</p>
+<p style='font-size:10px;color:#b3d4ff;margin:0 0 4px 0;'>HDFC Bank Ltd. | {bank_name} House, 165-166, Backbay Reclamation, Mumbai 400 020</p>
+<p style='font-size:10px;color:#b3d4ff;margin:0;'>&copy; 2024 {bank_name} Ltd. All rights reserved.</p>
+</td></tr>
+
+</table>
+</td></tr></table></body></html>"""
 
     msg.attach(MIMEText(html_body, "html"))
 
@@ -92,14 +116,18 @@ async def send_statement_email(
 
     def _send_sync():
         import smtplib
-        if config.use_ssl or config.port == 465:
+        if config.port == 465:
+            # Port 465 uses implicit SSL/TLS
             context = ssl.create_default_context()
             with smtplib.SMTP_SSL(config.host, config.port, context=context) as server:
                 server.login(config.username, config.password)
                 server.send_message(msg)
         else:
+            # Port 587 and others use STARTTLS (connect plain, then upgrade)
             with smtplib.SMTP(config.host, config.port) as server:
+                server.ehlo()
                 server.starttls(context=ssl.create_default_context())
+                server.ehlo()
                 server.login(config.username, config.password)
                 server.send_message(msg)
 

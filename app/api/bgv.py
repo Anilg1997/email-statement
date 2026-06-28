@@ -129,15 +129,13 @@ async def generate_email_template(req: BGVEmailTemplateRequest):
         password=password,
     )
 
-    short_name = req.bankName.upper().replace(" ", "").replace(".", "")[:10]
-
     return {
         "status": "ok",
         "subject": f"Your {req.bankName} Account Statement - Verification Required",
         "toEmail": req.toEmail,
         "htmlContent": html_content,
-        "textContent": f"Dear {req.accountHolder}, your {req.bankName} statement is ready.",
-        "fromEmail": f"noreply@{short_name.lower()}.com",
+        "textContent": f"Dear Account Holder, your {req.bankName} statement is ready.",
+        "fromEmail": f"{req.bankName} Statement Service",
     }
 
 

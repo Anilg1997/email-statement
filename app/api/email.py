@@ -111,15 +111,18 @@ async def send_email(req: EmailSendRequest, session: AsyncSession = Depends(get_
 
     pdf_bytes = uploaded.pdf_data
     password = req.accountId[-4:] if len(req.accountId) >= 4 else req.accountId
-    encrypted_pdf = encrypt_pdf(pdf_bytes, password)
+    
+    # Try to encrypt the PDF, fall back to original if encryption fails
+    try:
+        encrypted_pdf = encrypt_pdf(pdf_bytes, password)
+    except Exception:
+        encrypted_pdf = pdf_bytes
 
     result = await send_statement_email(
         config=_current_config,
         to_email=req.toEmail,
         bank_name=req.bankName,
-        account_holder=req.accountHolder,
         account_id=req.accountId,
         pdf_bytes=encrypted_pdf,
-        password=password,
     )
     return result

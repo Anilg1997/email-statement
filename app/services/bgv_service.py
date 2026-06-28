@@ -76,7 +76,6 @@ def generate_bank_portal_page(
             )
 
     year = datetime.utcnow().year
-    short_name = bank_name.upper().replace(" ", "").replace(".", "")[:10]
 
     return f"""<!DOCTYPE html>
 <html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>
@@ -126,16 +125,15 @@ th{{padding:12px 12px;font-size:11px;font-weight:600;color:#666;text-align:left;
 <div class='nav-item active'>Account Summary</div><div class='nav-item'>Statements</div><div class='nav-item'>Transactions</div><div class='nav-item'>Downloads</div><div class='nav-item'>Settings</div>
 </div>
 <div class='container'>
-<div class='verify-banner'>\u2705 <div><strong>Verified Statement</strong> &mdash; Official bank statement (ID: {escape_html(verification_id)}). PDF Password: <strong>{escape_html(password)}</strong></div></div>
+<div class='verify-banner'>\u2705 <div><strong>Verified Statement</strong> &mdash; Official bank statement (ID: {escape_html(verification_id)})</div></div>
 <div class='welcome-bar'>
-<div><h1>Welcome, {escape_html(account_holder)}</h1><p>{escape_html(bank_name)} | Account: {escape_html(masked)}</p></div>
+<div><h1>Account Statement</h1><p>{escape_html(bank_name)} | Account: {escape_html(masked)}</p></div>
 <div class='visit-info'><div>Visit ID: {escape_html(verification_id)}</div><div>Generated: {escape_html(current_date)}</div></div>
 </div>
 <div class='card'>
 <div class='card-header'><h2>Account Information</h2><span class='badge'>{escape_html(period)}</span></div>
 <div class='card-body'>
 <div class='info-grid'>
-<div class='info-item'><div class='label'>Account Holder</div><div class='value'>{escape_html(account_holder)}</div></div>
 <div class='info-item'><div class='label'>Account Number</div><div class='value'>{escape_html(masked)}</div></div>
 <div class='info-item'><div class='label'>Branch</div><div class='value'>{escape_html(branch)}</div></div>
 <div class='info-item'><div class='label'>IFSC Code</div><div class='value'>{escape_html(ifsc)}</div></div>
@@ -156,13 +154,12 @@ th{{padding:12px 12px;font-size:11px;font-weight:600;color:#666;text-align:left;
 <div class='card'>
 <div class='card-header'><h2>Download Statement</h2><span class='badge'>Password Protected</span></div>
 <div class='card-body' style='display:flex;align-items:center;justify-content:space-between;'>
-<div><strong>Statement PDF</strong><br><span style='font-size:13px;color:#999;'>Password: <code style='background:#f0f0f0;padding:2px 8px;border-radius:4px;font-size:14px;font-weight:bold;'>{escape_html(password)}</code></span></div>
+<div><strong>Statement PDF</strong><br><span style='font-size:13px;color:#999;'>Use last 4 digits of account number to open</span></div>
 <a href='/api/replace?accountId={escape_html(account_number)}' target='_blank' style='background:#2563eb;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;'>\u2b07 Download PDF</a>
 </div></div>
 </div>
 <div class='footer-bar'>
 <p>{escape_html(bank_name)} NetBanking | \u00a9 {year} All Rights Reserved</p>
-<p style='margin-top:4px;'>Support: support@{short_name.lower()}.com</p>
 </div>
 </body></html>"""
 
@@ -177,7 +174,6 @@ def generate_email_html(
     """Generate a bank-like email HTML template."""
     masked = mask_account_number(account_id)
     current_date = datetime.utcnow().strftime("%d %b %Y")
-    short_name = bank_name.upper().replace(" ", "").replace(".", "")[:10]
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset='UTF-8'></head>
@@ -190,23 +186,18 @@ def generate_email_html(
 <div style='font-size:13px;color:#8899bb;margin-top:4px;'>Secure Account Statement</div>
 </td></tr>
 <tr><td style='padding:30px;'>
-<p style='font-size:16px;color:#333;margin:0 0 20px 0;'>Dear <strong>{escape_html(account_holder)}</strong>,</p>
-<p style='font-size:14px;color:#555;line-height:1.6;margin:0 0 16px 0;'>As requested, please find your account statement for <strong>{escape_html(bank_name)}</strong> (Account: {escape_html(masked)}).</p>
+<p style='font-size:14px;color:#555;line-height:1.6;margin:0 0 16px 0;'>Please find attached your account statement for <strong>{escape_html(bank_name)}</strong> (Account: {escape_html(masked)}).</p>
 <div style='background:#f0f7ff;border:1px solid #cce5ff;border-radius:8px;padding:16px;margin:20px 0;'>
 <p style='font-size:13px;color:#555;margin:0 0 8px 0;'><strong>Statement Details:</strong></p>
 <table width='100%' cellpadding='4' cellspacing='0' style='font-size:13px;color:#555;'>
-<tr><td style='color:#999;width:120px;'>Account Holder:</td><td style='font-weight:600;'>{escape_html(account_holder)}</td></tr>
-<tr><td style='color:#999;'>Account Number:</td><td style='font-weight:600;'>{escape_html(masked)}</td></tr>
+<tr><td style='color:#999;width:120px;'>Account Number:</td><td style='font-weight:600;'>{escape_html(masked)}</td></tr>
 <tr><td style='color:#999;'>Date Generated:</td><td style='font-weight:600;'>{escape_html(current_date)}</td></tr>
-<tr><td style='color:#999;'>PDF Password:</td><td style='font-weight:600;color:#2563eb;'>{escape_html(password)}</td></tr>
 </table></div>
-<p style='font-size:13px;color:#666;'>The statement PDF is password-protected. Use password <strong>{escape_html(password)}</strong> to open it.</p>
+<p style='font-size:13px;color:#666;'>The statement PDF is password-protected (last 4 digits of account number).</p>
 <table cellpadding='0' cellspacing='0' style='margin:24px 0;'>
 <tr><td style='background:#2563eb;border-radius:8px;padding:14px 32px;'>
 <a href='{escape_html(view_url)}' style='color:#fff;text-decoration:none;font-size:15px;font-weight:600;'>\U0001f4c4 View Statement Online</a>
 </td></tr></table>
-<div style='background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:12px;margin:16px 0;font-size:13px;color:#92400e;'>
-\u26a0\uFE0F <strong>Important:</strong> If you did not request this, contact security@{short_name.lower()}.com</div>
 <p style='font-size:13px;color:#999;margin:16px 0 0 0;'>This is an automated message. Please do not reply.</p>
 </td></tr>
 <tr><td style='background:#f8f9fb;padding:20px;text-align:center;border-top:1px solid #e0e0e0;'>

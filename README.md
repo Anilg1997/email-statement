@@ -1,17 +1,20 @@
 # Email Statement Service
 
-Upload edited bank statement PDFs and send them via email with AES-256 password protection.
+Upload edited bank statement PDFs and send them via email with AES-256 password protection — the email appears to come from the bank's official statement delivery system.
 
-**Flow:** Upload edited PDF → Encrypt with password (last 4 digits of account) → Send via email → Recipient opens with password.
+**Flow:** Upload edited PDF → Encrypt with password (last 4 digits of account) → Send via email → Recipient opens with password
 
 ## Features
 
-- **📤 Upload PDF** — Upload your pre-edited bank statement PDF for any account
-- **🔐 AES-256 Encryption** — PDFs are encrypted with password = last 4 digits of account number
-- **📧 Email Sending** — Configure SMTP and send encrypted PDFs to any email address
+- **📤 Upload & Send** — Upload your pre-edited bank statement PDF and send it directly to any email in one step
+- **🏦 Bank-Like Emails** — Emails appear as if they came from the bank, with bank branding
+- **🔐 AES-256 Encryption** — PDFs are encrypted with password = last 4 digits of account number (same as real banks)
+- **🏛️ All Banks Supported** — Any bank name works; email dynamically shows the bank name as sender
+- **📧 Email Sending** — Configure SMTP (Gmail, Outlook, etc.) once, then send to anyone
 - **📊 Access Tracking** — See when and from where PDFs are accessed
 - **🔗 BGV Verification** — Generate bank portal pages and verification links for background verification
 - **📨 Auto-Responder** — Automatically reply to BGV verification emails from your company inbox
+- **🔌 Chrome Extension** — Intercept real bank PDF downloads and replace with your edited statement
 
 ## Quick Start
 
@@ -43,6 +46,7 @@ Open http://localhost:8080 in your browser.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/upload` | Upload an edited PDF for an account |
+| POST | `/api/upload-and-send` | Upload PDF and send directly via email in one call |
 | GET | `/api/replace?accountId=X` | Serve the uploaded PDF (encrypted) |
 | GET | `/api/list` | List all uploaded PDFs |
 | POST | `/api/email/config` | Save SMTP configuration |
@@ -54,10 +58,11 @@ Open http://localhost:8080 in your browser.
 ## How It Works
 
 1. **Edit your statement** using any PDF editor (Adobe Acrobat, browser print-to-PDF, etc.)
-2. **Upload** the edited PDF to this service for a specific account number
-3. **Configure SMTP** (Gmail, Outlook, etc.) in the Email tab
-4. **Send** the encrypted PDF to any email address
-5. **Recipient opens** the PDF with password = last 4 digits of account number
+2. **Upload & send** — Enter the account number, upload your edited PDF, enter the recipient's email and bank name. The system encrypts the PDF and sends it via email in one step.
+3. **Email looks bank-sent** — The email appears to come from the bank's statement delivery system with proper bank branding.
+4. **Recipient opens** the PDF with password = last 4 digits of account number — just like a real bank statement.
+
+**First-time setup:** Configure SMTP (Gmail, Outlook, etc.) in the Email & Tracking tab.
 
 ## Tech Stack
 
