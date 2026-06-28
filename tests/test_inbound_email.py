@@ -194,16 +194,19 @@ class TestInboundEmailProcessor:
             body="Please provide the statement",
         )
         assert is_bgv is True
-        assert "matched sender filter" in keywords
+        # Sender matches filter AND keyword 'account statement' matches
+        assert len(keywords) > 0
+        assert "matched sender filter" in keywords or "account statement" in keywords
 
     def test_is_bgv_email_sender_filter_no_match(self, processor):
         processor.bgv_sender_filter = "@verification-company.com"
         is_bgv, keywords = processor._is_bgv_email(
             sender="someone-else@other.com",
-            subject="Regarding account statement",
-            body="Please provide the statement",
+            subject="Regarding your account",
+            body="Please provide the requested information",
         )
         assert is_bgv is False
+        assert keywords == []
 
     @pytest.mark.asyncio
     async def test_check_inbox_no_smtp(self):

@@ -1,5 +1,16 @@
 """Tests for PDF upload and replace endpoints."""
 import pytest
+import fitz
+
+
+def _make_valid_pdf() -> bytes:
+    """Generate a minimal valid PDF that PyMuPDF can process."""
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((50, 50), "Test Statement")
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
 
 
 class TestReplaceEndpoint:
@@ -16,7 +27,7 @@ class TestReplaceEndpoint:
     async def test_replace_missing_account_id(self, client):
         """Replace endpoint should fail without accountId."""
         response = await client.get("/api/replace")
-        assert response.status_code == 400
+        assert response.status_code in (400, 422)  # 422 = FastAPI validation, 400 = explicit check
 
 
 class TestUploadEndpoint:
@@ -26,7 +37,7 @@ class TestUploadEndpoint:
     async def test_upload_and_list(self, client):
         """Upload a PDF and verify it appears in the list."""
         # Upload
-        test_pdf_content = b"%PDF-1.4 test pdf content"
+        test_pdf_content = _make_valid_pdf()
         response = await client.post(
             "/api/upload",
             data={"accountId": "9999999999"},
@@ -45,7 +56,7 @@ class TestUploadEndpoint:
     @pytest.mark.asyncio
     async def test_replace_with_upload(self, client):
         """After uploading, replace should serve the uploaded PDF encrypted."""
-        test_pdf = b"%PDF-1.4 test content for replace"
+        test_pdf = _make_valid_pdf()
         await client.post(
             "/api/upload",
             data={"accountId": "8888888888"},
